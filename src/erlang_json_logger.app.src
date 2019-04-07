@@ -3,13 +3,10 @@
   {description, "A custom erlang logger formatter which prints JSON"},
   {vsn, "0.1.0"},
   {registered, []},
-  {applications,
-   [
-    kernel,
-    stdlib
-   ]},
+  {applications, [kernel, stdlib]},
   {env,[]},
   {modules, []},
+  {maintainers, ["expelledboy"]},
   {licenses, ["Apache 2.0"]},
   {links, [{"Github", "https://github.com/expelledboy/erlang_json_logger"}]}
  ]}.
