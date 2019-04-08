@@ -6,7 +6,10 @@
 -define(MOD, erlang_json_logger).
 
 all() ->
-    [basic_test].
+    [
+     basic_test,
+     pid_test
+    ].
 
 basic_test(_) ->
     Log = #{level => info,
@@ -14,5 +17,15 @@ basic_test(_) ->
             meta => #{}},
     ?assertEqual(
        <<"{\n  \"level\":\"info\",\n  \"what\":\"crash\"\n}">>,
+       ?MOD:format(Log, #{})
+      ).
+
+pid_test(_) ->
+    Log = #{level => info,
+            msg => {report, #{pid => self()}},
+            meta => #{}},
+    PidBin = list_to_binary(pid_to_list(self())),
+    ?assertEqual(
+       <<"{\n  \"level\":\"info\",\n  \"pid\":\"", PidBin/binary, "\"\n}">>,
        ?MOD:format(Log, #{})
       ).
