@@ -36,13 +36,23 @@ format_msg(Msg, Meta, Config) when
     Defaults = #{ indent => 2 },
     Config0 = maps:merge(Defaults, Config),
     Msg0 = maps:merge(Msg, Meta),
-    encode(Msg0, Config0).
+    Msg1 = map_nested(fun pre_encode/1, Msg0),
+    encode(Msg1, Config0).
+
+%% --
+
+map_nested(Fun, Map) when is_map(Map) ->
+    maps:from_list([
+        {Key, map_nested(Fun, Value)} ||
+        {Key, Value} <- maps:to_list(Map)
+    ]);
+map_nested(Fun, Value) ->
+    Fun(Value).
 
 %% --
 
 encode(Map, Config) ->
-    jsx:encode(maps:to_list(Map),
-               maps:to_list(Config)++[{pre_encode, fun pre_encode/1}]).
+    jsx:encode(maps:to_list(Map), maps:to_list(Config)).
 
 pre_encode(Pid) when is_pid(Pid) ->
     list_to_binary(pid_to_list(Pid));
