@@ -7,25 +7,52 @@
 
 all() ->
     [
-     basic_test,
-     pid_test
+        basic_test,
+        pid_test,
+        file_test,
+        time_test
     ].
 
 basic_test(_) ->
-    Log = #{level => info,
-            msg => {report, #{what => crash}},
-            meta => #{}},
+    Log = #{
+        level => info,
+        msg => {report, #{what => crash}},
+        meta => #{}
+    },
     ?assertEqual(
-       <<"{\n  \"level\":\"info\",\n  \"what\":\"crash\"\n}">>,
-       ?MOD:format(Log, #{})
-      ).
+        <<"{\"level\":\"info\",\"what\":\"crash\"}\n">>,
+        ?MOD:format(Log, [])
+    ).
 
 pid_test(_) ->
-    Log = #{level => info,
-            msg => {report, #{pid => self()}},
-            meta => #{}},
-    PidBin = list_to_binary(pid_to_list(self())),
+    Log = #{
+        level => info,
+        msg => {report, #{pid => list_to_pid("<0.228.0>")}},
+        meta => #{}
+    },
     ?assertEqual(
-       <<"{\n  \"level\":\"info\",\n  \"pid\":\"", PidBin/binary, "\"\n}">>,
-       ?MOD:format(Log, #{})
-      ).
+        <<"{\"level\":\"info\",\"pid\":\"<0.228.0>\"}\n">>,
+        ?MOD:format(Log, [])
+    ).
+
+file_test(_) ->
+    Log = #{
+        level => info,
+        msg => {report, #{file => "/long/path/test.erl"}},
+        meta => #{}
+    },
+    ?assertEqual(
+        <<"{\"file\":\"test.erl\",\"level\":\"info\"}\n">>,
+        ?MOD:format(Log, [])
+    ).
+
+time_test(_) ->
+    Log = #{
+        level => info,
+        msg => {report, #{}},
+        meta => #{time => 1683269043433248}
+    },
+    ?assertEqual(
+        <<"{\"level\":\"info\",\"time\":\"2023-05-05T08:44:03.433+02:00\"}\n">>,
+        ?MOD:format(Log, [])
+    ).

@@ -5,7 +5,7 @@
 
 -ifdef(TEST).
 -export([ format_msg/3 ]).
--export([ pre_encode/1 ]).
+-export([ pre_encode/2 ]).
 -endif.
 
 %% -- logger callbacks
@@ -36,18 +36,20 @@ format_msg(Msg, Meta, Config) when
     Meta0 = maps:with([domain, file, label, level, line, logger_formatter, mfa, pid, report, time], Meta),
     Msg0 = maps:merge(Msg, Meta0),
     % io:format("Msg0: ~p~n", [Msg0]),
-    Msg1 = map_nested(fun pre_encode/1, Msg0),
+    Msg1 = map_nested(fun pre_encode/2, Msg0),
     encode(Msg1, Config).
 
 %% --
+map_nested(Fun, Map) ->
+    map_nested(Fun, root, Map).
 
-map_nested(Fun, Map) when is_map(Map) ->
+map_nested(Fun, _Key, Map) when is_map(Map) ->
     maps:from_list([
-        {Key, map_nested(Fun, Value)} ||
+        {Key, map_nested(Fun, Key, Value)} ||
         {Key, Value} <- maps:to_list(Map)
     ]);
-map_nested(Fun, Value) ->
-    Fun(Value).
+map_nested(Fun, Key, Value) ->
+    Fun(Key,Value).
 
 %% --
 
@@ -61,19 +63,26 @@ encode(Map, Config) ->
             throw(Error)
     end.
 
-pre_encode(T) when is_atom(T) ->
+
+pre_encode(file,Value) when is_list(Value) ->
+    list_to_binary(filename:basename(Value));
+pre_encode(time,SysTime) when is_integer(SysTime) ->
+    StrValue = calendar:system_time_to_rfc3339(SysTime div 1000,[{unit,millisecond}]),
+    list_to_binary(StrValue);
+
+pre_encode(_Key,T) when is_atom(T) ->
     atom_to_binary(T, utf8);
-pre_encode(PidRef) when is_pid(PidRef) or is_reference(PidRef) ->
+pre_encode(_Key,PidRef) when is_pid(PidRef) or is_reference(PidRef) ->
     list_to_binary(pid_to_list(PidRef));
-pre_encode(Fun) when is_function(Fun) ->
+pre_encode(_Key,Fun) when is_function(Fun) ->
     <<"#function">>;
-pre_encode(Tuple) when is_tuple(Tuple) ->
+pre_encode(_Key,Tuple) when is_tuple(Tuple) ->
     list_to_binary(io_lib:format("~tp", [Tuple]));
-pre_encode(Map) when is_map(Map) ->
+pre_encode(_Key,Map) when is_map(Map) ->
     maps:from_list([
-        {Key, pre_encode(Value)} || {Key, Value} <- maps:to_list(Map)
+        {Key, pre_encode(Key,Value)} || {Key, Value} <- maps:to_list(Map)
     ]);
-pre_encode(List) when is_list(List) ->
+pre_encode(Key,List) when is_list(List) ->
     case io_lib:printable_list(List) of
         true ->
             case unicode:characters_to_binary(List) of
@@ -85,16 +94,16 @@ pre_encode(List) when is_list(List) ->
         false ->
             case is_proplist(List) of
                 true ->
-                    pre_encode(maps:from_list(List));
+                    pre_encode(Key,maps:from_list(List));
                 false ->
                     list_to_binary(io_lib:format("~tp", [List]))
             end
     end;
-pre_encode([{Pid1, Pid2} | Rest]) when is_pid(Pid1), is_pid(Pid2) ->
-    [{pre_encode(Pid1), pre_encode(Pid2)} | pre_encode(Rest)];
-pre_encode([{Pid, Other} | Rest]) when is_pid(Pid) ->
-    [{pre_encode(Pid), Other} | pre_encode(Rest)];
-pre_encode(Other) ->
+pre_encode(Key,[{Pid1, Pid2} | Rest]) when is_pid(Pid1), is_pid(Pid2) ->
+    [{pre_encode(Key,Pid1), pre_encode(Key,Pid2)} | pre_encode(Key,Rest)];
+pre_encode(Key,[{Pid, Other} | Rest]) when is_pid(Pid) ->
+    [{pre_encode(Key,Pid),Other} | pre_encode(Key,Rest)];
+pre_encode(_Key,Other) ->
     Other.
 
 %% --
